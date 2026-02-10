@@ -6,4 +6,7 @@
 
 Numerical wind-profile research models and examples.
 
-Based on code for tropical cyclone wind profile model of Chavas et al (2015, JAS). (https://purr.purdue.edu/publications/4066/1)
+Notes:
+- This repository contains a refactored and packaged implementation derived from the published code accompanying Chavas et al. (2015, *JAS*): https://purr.purdue.edu/publications/4066/1
+- Refactoring, updates, and packaging by Aaron Spaulding.
+- GPT-5.3 Codex assisted with packaging boilerplate and formatting.
