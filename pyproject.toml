@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wind-models"
+version = "0.1.0"
+description = "Research wind profile models."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "CC-BY-4.0"
+license-files = ["LICENSE"]
+authors = [
+  { name = "Aaron Spaulding" }
+]
+keywords = ["wind", "tropical-cyclone", "numerical-model", "research"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Atmospheric Science",
+]
+dependencies = [
+  "numpy>=1.23",
+  "scipy>=1.10",
+  "shapely>=2.0",
+  "matplotlib>=3.7",
+]
+
+[project.urls]
+Homepage = "https://github.com/aaroncspaulding/Wind-Models"
+Repository = "https://github.com/aaroncspaulding/Wind-Models"
+Issues = "https://github.com/aaroncspaulding/Wind-Models/issues"
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.0",
+]
+dev = [
+  "pytest>=8.0",
+  "build>=1.2",
+  "twine>=5.0",
+]
+ml = [
+  "xgboost>=2.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
