@@ -17,6 +17,15 @@ from shapely import LineString
 #######################################################################
 
 
+def sample_lognormal(median, cov, samples):
+    std_dev = cov * median
+
+    mu = np.log(median)
+    sigma = np.sqrt(np.log(1 + (std_dev ** 2 / median ** 2)))
+
+    return np.random.lognormal(mu, sigma, samples)
+
+
 def varying_drag_coefficient_donelan(
     tangential_wind_speed_at_outer_radius: float,
     current_normalized_angular_momentum: float,
@@ -168,23 +177,31 @@ def ER11_radprof_raw(
     """
     coriolis_factor = np.abs(coriolis_factor)
 
+    radii = np.asarray(radii, dtype=float)
+    inverse_radii = np.zeros_like(radii, dtype=float)
+    np.divide(1.0, radii, out=inverse_radii, where=radii != 0)
+
     # Calculate the Emanuel and Rotunno (2011) theoretical profile
     wind_velocity_er11 = (
-        np.divide(1.0, radii, where=radii != 0)
+        inverse_radii
         * (v_max * r_max + 0.5 * coriolis_factor * r_max ** 2)
         * ((2 * (radii / r_max) ** 2) / (2 - CkCd + CkCd * (radii / r_max) ** 2))
         ** (1 / (2 - CkCd))
         - 0.5 * coriolis_factor * radii
     )
+    wind_velocity_er11[radii == 0] = 0.0
 
     # Find the radius corresponding to the outer edge of the wind profile
     max_index = np.argmax(wind_velocity_er11)
-    f_ = interp1d(
-        wind_velocity_er11[max_index + 1:],
-        radii[max_index + 1:],
-        fill_value='extrapolate',
-    )
-    r_out = f_(0.0).tolist()
+    if max_index >= wind_velocity_er11.size - 1:
+        r_out = np.nan
+    else:
+        f_ = interp1d(
+            wind_velocity_er11[max_index + 1:],
+            radii[max_index + 1:],
+            fill_value='extrapolate',
+        )
+        r_out = f_(0.0).tolist()
 
     return wind_velocity_er11, r_out
 
@@ -607,9 +624,13 @@ def ER11E04_nondim_r0input(
     MMfracM0 = MMfracMm * Mm / M0
 
     # Calculate dimensional wind speed and radii
-    VV = (Mm / rmax) * (
-        MMfracMm / rrfracrm
-    ) - (0.5 * coriolis_factor * rmax * rrfracrm)  # [ms-1]
+    mm_over_r = np.divide(
+        MMfracMm,
+        rrfracrm,
+        out=np.zeros_like(MMfracMm),
+        where=rrfracrm != 0,
+    )
+    VV = (Mm / rmax) * mm_over_r - (0.5 * coriolis_factor * rmax * rrfracrm)  # [ms-1]
     rr = rrfracrm * rmax  # [m]
 
     # Make sure V=0 at r=0
@@ -651,13 +672,25 @@ def ER11E04_nondim_rmaxinput_FAST_XGBOOST(
     rmax,
     fcor,
     model=None,
+    model_path=None,
     *args,
     **kwargs,
 ):
+    try:
+        import xgboost as xgb
+    except ImportError as exc:
+        raise ImportError(
+            "xgboost is required for FAST_XGBOOST; install wind-models[ml]."
+        ) from exc
+
     if model is None:
         model = xgb.XGBRegressor()
-        model.load_model('model.json')
-    model.predict([[Vmax, rmax, fcor]])
+        if model_path is None:
+            raise ValueError("model_path is required when model is not provided.")
+        model.load_model(model_path)
+
+    prediction = model.predict(np.array([[Vmax, rmax, fcor]], dtype=float))
+    return float(prediction[0])
 
 
 def ER11E04_nondim_rmaxinput(Vmax, rmax, fcor, Cdvary, C_d, w_cool, CkCdvary, CkCd, eye_adj, alpha_eye):
@@ -772,7 +805,13 @@ def ER11E04_nondim_rmaxinput(Vmax, rmax, fcor, Cdvary, C_d, w_cool, CkCdvary, Ck
             # rr = rrfracr0*r0   #[m]
             # rmerge = rmerger0*r0
             # Vmerge = (M0/r0)*((MmergeM0./rmerger0)-rmerger0)  #[ms-1]
-            VV = (Mm / rmax) * (MMfracMm / rrfracrm) - .5 * fcor * rmax * rrfracrm  # [ms-1]
+            mm_over_r = np.divide(
+                MMfracMm,
+                rrfracrm,
+                out=np.zeros_like(MMfracMm),
+                where=rrfracrm != 0,
+            )
+            VV = (Mm / rmax) * mm_over_r - .5 * fcor * rmax * rrfracrm  # [ms-1]
             rr = rrfracrm * rmax  # [m]
 
             ## Make sure V=0 at r=0
